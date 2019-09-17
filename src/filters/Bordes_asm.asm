@@ -149,8 +149,7 @@ Bordes_asm:
 
 ;   Hay que setear el alpha a 255 con alguna mascara
 
-        movdqu [rsi], xmm0
-
+        
 ;   Si hacemos el empaquetado ahora los valores mayores a 255 van a saturar
 ;   a 255. Debemos sumar todos los registros acá , de forma desempaquetada
 ;   y solo empaquetarlos a lo último?
@@ -158,6 +157,8 @@ Bordes_asm:
 ;       Seteamos el alpha.
 
         por xmm0, xmm15
+
+        movdqu [rsi], xmm0
 
         lea rdi, [rdi + PIXEL_SIZE*4]
         lea rsi, [rsi + PIXEL_SIZE*4]
