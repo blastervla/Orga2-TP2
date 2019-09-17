@@ -1,0 +1,11 @@
+Experimentacion
+===============
+
+Ideas para experimentación
+
+Rombos
+------
+
+- Usar `div` vs hacer una funcion custom más rapida
+- Más o menos pixeles a la vez
+- 4 vs 2
