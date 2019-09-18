@@ -1,3 +1,7 @@
+
+section .rodata
+
+
 section .text
 
 global Bordes_asm
@@ -33,7 +37,8 @@ Bordes_asm:
 ;   Recorremos la matriz hasta llegar hasta el último pixel que tiene vecinos.
 ;   Este pixel es el (n-1, m-1).
 
-    mov eax, edx
+;   Esta mal, pasar a rax, y multiplicar por ecx
+    ;mov eax, edx
     mul ecx
 
 ;   En rax tenemos la ultima fila y columna. mul 32b --> 64b
@@ -42,13 +47,14 @@ Bordes_asm:
     ;add r10d, ecx
     sub rax, r8
     sub rax, 1
+    ; lea rax, [rax + r8 - 1]
 
 
  
 
     pxor xmm0, xmm0
     pxor xmm13, xmm13
-    movdqu xmm15, 0x000000FF000000FF000000FF000000FF
+    movdqu xmm15, 0x000000FF000000FF000000FF000000FF ;mask alphas
     .ciclo:
         test rax, rax
         jz .fin
@@ -71,6 +77,7 @@ Bordes_asm:
 
         movdqu xmm10, xmm3
         movdqu xmm11, xmm7
+        ;copiar xmm9 en vez de xmm7
 
 ;   Vamos a sumar de a pares negativos/positivos asi minimizamos la cantidad
 ;   de registros a desempaquetar.
@@ -168,4 +175,6 @@ Bordes_asm:
 
     .fin:
         call llenarBordes
+
+    pop rbp
 ret
