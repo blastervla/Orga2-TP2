@@ -2,3 +2,4 @@
 
 # Built objects
 *.o
+*/build
