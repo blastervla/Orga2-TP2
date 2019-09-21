@@ -247,7 +247,7 @@ Rombos_asm:
         psubd xmm1, xmm3        ; xmm1 = i_0 + 1 % s | j_0 + 2 % s | i_1 + 1 % s | j_1 + 2 % s
                             
         ; Avanzo el offset
-        inc r10             ; offset += 2 (leo de a dos pixeles)
+        add r10, 2             ; offset += 2 (leo de a dos pixeles)
 
         ; Si no termine, sigo ciclando
         cmp r10, r11        ; cmp offset, max_offset
