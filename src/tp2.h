@@ -6,6 +6,8 @@
 
 #define FILTRO_C   0
 #define FILTRO_ASM 1
+#define FILTRO_ASM_MID 2
+#define FILTRO_ASM_LOW 3
 
 typedef unsigned char uchar;
 typedef unsigned short ushort;
@@ -63,8 +65,8 @@ typedef struct configuracion_t {
     int cant_iteraciones;
 } configuracion_t;
 
-#define SWITCH_C_ASM(config,c_ver,asm_ver) ( config->tipo_filtro == FILTRO_C ? c_ver : asm_ver )
-#define C_ASM(config) ( SWITCH_C_ASM(config, "C", "ASM") )
+#define SWITCH_C_ASM(config,c_ver,asm_ver,asm_mid_ver,asm_low_ver) ( config->tipo_filtro == FILTRO_C ? c_ver : ( config->tipo_filtro == FILTRO_ASM ? asm_ver : ( config->tipo_filtro == FILTRO_ASM_MID ? asm_mid_ver : asm_low_ver )))
+#define C_ASM(config) ( SWITCH_C_ASM(config, "C", "ASM", "ASM_MID", "ASM_LOW") )
 
 typedef void (lector_params_fn_t) (configuracion_t *config, int, char *[]);
 typedef void (aplicador_fn_t) (configuracion_t*);

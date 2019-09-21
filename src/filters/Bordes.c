@@ -20,7 +20,9 @@ void leer_params_Bordes(configuracion_t *config, int argc, char *argv[]) {
 
 void aplicar_Bordes(configuracion_t *config)
 {
-    Bordes_fn_t *Bordes = SWITCH_C_ASM( config, Bordes_c, Bordes_asm );
+    // TODO: Corregir. Si tenemos implementaciones de mid y low performance, meter abajo
+    // SWITCH_C_ASM ( config, Bordes_c, Bordes_asm, Bordes_asm_mid, Bordes_asm_low );
+    Bordes_fn_t *Bordes = SWITCH_C_ASM( config, Bordes_c, Bordes_asm, Bordes_asm, Bordes_asm );
     buffer_info_t info = config->src;
     Bordes(info.bytes, config->dst.bytes, info.width, info.height, 
             info.row_size, config->dst.row_size);
