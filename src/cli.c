@@ -113,8 +113,8 @@ void procesar_opciones(int argc, char **argv, configuracion_t *config) {
     // Verifico nombre de la implementacion
     if (tipo_filtro == NULL ||
         (strcmp(tipo_filtro, "c") != 0 &&
-        strcmp(tipo_filtro, "asm") != 0) &&
-        strcmp(tipo_filtro, "asm_mid") != 0) &&
+        strcmp(tipo_filtro, "asm") != 0 &&
+        strcmp(tipo_filtro, "asm_mid") != 0 &&
         strcmp(tipo_filtro, "asm_low") != 0)) {
         imprimir_ayuda (argv[0]);
 
