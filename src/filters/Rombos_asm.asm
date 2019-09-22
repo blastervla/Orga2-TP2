@@ -78,7 +78,8 @@ Rombos_asm:
     movdqu xmm1, [INITIAL_IDXS] ; xmm1 = i_0 % s | j_0 %s | i_1 %s | j_1 % s
                                 ;      =     0   |    0   |    0   |    1
 
-    ; Inicializo los offsets
+    ; Inicializo los offsets / contadores
+    xor r9, r9      ; r9 = 0, lo uso como bytes_row_actual
     xor r10, r10    ; r10 = 0, lo uso como offset de src y dst
     ; El ultimo offset que voy a usar va a ser
     ;
@@ -219,18 +220,16 @@ Rombos_asm:
 
         psubd xmm1, xmm3        ; xmm1 = i_0 | j_0 + 2 % s | i_1 | j_1 + 2 % s
 
-
         ; Incremento los i-es
-        ; Solo debería hacerlo si se resetearon los j-es
-        ; Tengo en xmm4 F si los j-es se pasaron y 0 sino, lo shifteo a la 
-        ; izquierda así lo tengo en la posicion de los ies
-                            ;    X = F si se paso y 0 sino
-                            ;        i_0 | j_0 | i_1 | j_1
-                            ; xmm4 =  _  |  X  |  _  |  X  
-        psrldq xmm4, 4      ; xmm4 =  X  |  _  |  X  |  _
+        ; Solo debería hacerlo si llegue al final de la fila
+        ; Avanzo la cantidad de bytes leidos de la columna actual
+        add r9, 8             ; col += 2 * PIXEL_SIZE = 8
+        ; Si pase el final, lo vuelvo a 0 e incremento i
+        cmp r9, r8            ; cmp bytes_row_actual src_row_size
+        jb .dont_inc_row
+        xor r9, r9            ; bytes_row_actual = 0
 
         movdqu xmm2, [INC_I]; xmm2 =  1  |  0  |  1  |  0
-        pand xmm2, xmm4     ; xmm2 tiene el incr. solo si i se había pasado
         paddd xmm1, xmm2    ; xmm1 = i_0 + 1 | j_0 + 2 % s | i_1 + 1 | j_1 + 2 % s
 
         ; Resto size a los que se pasaron
@@ -247,7 +246,8 @@ Rombos_asm:
                                 ;           0       sino
 
         psubd xmm1, xmm3        ; xmm1 = i_0 + 1 % s | j_0 + 2 % s | i_1 + 1 % s | j_1 + 2 % s
-                            
+        .dont_inc_row:
+
         ; Avanzo el offset
         add r10, 2             ; offset += 2 (leo de a dos pixeles)
 
