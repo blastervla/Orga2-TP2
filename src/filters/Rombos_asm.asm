@@ -34,9 +34,8 @@ NEG_XOR:        dd 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF   ; Máscara p
 INC_ALL:        dd 0x00000001, 0x00000001, 0x00000001, 0x00000001   ; Máscara para sumar 1 a todos
 
 ; Mascaras para operar sobre los x-es
-SHUFB_MASK:     dd 0x00000000, 0x01010101, 0xFFFFFFFF, 0xFFFFFFFF
-;                    a g r b     a g r b  
-SET_ALPHA:      dd 0xFF000000, 0xFF000000   ; Poner en 255 el canal alpha 
+;         xmm{x} =    b   |   g   |   r   |   a
+ALPHA:  TIMES 2 dw 0x0000, 0x0000, 0x0000, 0xFFFF   ; Poner en 255 el canal alpha 
 
 section .text
 Rombos_asm:
@@ -154,38 +153,45 @@ Rombos_asm:
         ; Tengo en xmm2 lo que quería
         ; xmm2 = x_0 | x_1 | x_0 | x_1
         
-        ; Quiero sumarlos a los canales de sus respectivos pixeles,
-        ; pero al levantarlos tienen la siguiente pinta (donde lo menos
-        ; significativo está a la izquierda y lo mas a la derecha) 
+        ; Quiero sumarlos a los canales de sus respectivos pixeles.
+        ; Al levantarlos, cada canal es de 1 byte y son enteros sin signos, y
+        ; las x-es son signadas. Necesito pasarlas a la misma representación.
+        ; Empaqueto las x-es de dw a w, y desempaqueto los pixeles de b a w.
+        ; 
+        ; De esa forma los pixeles quedan así:
+        ; (menos a más significativo de izquierda a derecha) 
         ;
-        ;   xmm{x} =           p_0          ||          p_1          || ... || ... 
-        ;          =  b_0 | g_0 | r_0 | a_0 || b_1 | g_1 | r_1 | a_1 || ... || ...
+        ;   xmm{x} =           p_0          ||          p_1
+        ;          =  b_0 | g_0 | r_0 | a_0 || b_1 | g_1 | r_1 | a_1
         ;
-        ; Pero cada canal es un byte, y mis x son de 4 bytes
-        ; Las empaqueto dos veces para llevarlas a 1 byte c/u
-
         ; xmm2 = x_0 | x_1 | x_0 | x_1
+        ; Empaqueto a word
         packssdw xmm2, xmm2 ; xmm2 = x_0 | x_1 | x_0 | x_1 | x_0 | x_1 | x_0 | x_1
-        packsswb xmm2, xmm2 ; xmm2 = x_0 | x_1 | x_0 | x_1 | x_0 | x_1 | x_0 | x_1 | x_0 | x_1 | x_0 | x_1 | x_0 | x_1 | x_0 | x_1
-        ; Pero están desordenados, necesito agruparlos en la parte baja según
+        ; Están desordenados, necesito agruparlos en la parte baja según
         ; a que pixel tienen que sumarse
-        movq xmm3, [SHUFB_MASK] ; TODO: Podría estar precargada
-                            ;        b_0 | g_0 | r_0 | a_0 | b_1 | g_1 | r_1 | a_1 || ... || ... ||             
-                            ; xmm2 = x_0 | x_1 | x_0 | x_1 | x_0 | x_1 | x_0 | x_1 || ... || ... ||
-        pshufb xmm2, xmm3   ; xmm2 = x_0 | x_0 | x_0 | x_0 | x_1 | x_1 | x_1 | x_1 || ... || ... ||
-        
+                                        ;        b_0 | g_0 | r_0 | a_0 | b_1 | g_1 | r_1 | a_1
+                                        ; xmm2 = x_0 | x_1 | x_0 | x_1 | x_0 | x_1 | x_0 | x_1
+        pshuflw xmm2, xmm2, 0b00000000  ; xmm2 = x_0 | x_0 | x_0 | x_0 | x_0 | x_1 | x_0 | x_1
+        pshufhw xmm2, xmm2, 0b01010101  ; xmm2 = x_0 | x_0 | x_0 | x_0 | x_1 | x_1 | x_1 | x_1
+
         ; Pongo el canal de transparencia en 255
-        movq xmm3, [SET_ALPHA]  ; TODO: Podría estar precargada
-        por xmm2, xmm3      ; xmm2 = x_0 | x_0 | x_0 | FF  | x_1 | x_1 | x_1 | FF || ... || ... || 
+        movq xmm3, [ALPHA]  ; TODO: Podría estar precargada
+        por xmm2, xmm3      ; xmm2 = x_0 | x_0 | x_0 |  FF  | x_1 | x_1 | x_1 |  FF
 
         ; Recuerdo que
         ;
         ;   rdi = src
         ;   rsi = dst
         ;
-        ; Levanto los pixeles y hago la suma con saturacion
-        movq xmm3, [rdi + r10 * PIXEL_SIZE] ; xmm3 =    b_0    |    g_0    |    r_0    | a_0 |    b_1    |    g_1    |    r_1    | a_1 || ... || ... 
-        paddsb xmm3, xmm2                   ; xmm3 = b_0 + x_0 | g_0 + x_0 | r_0 + x_0 | FF  | b_1 + x_1 | g_1 + x_1 | r_1 + x_1 | FF  || ... || ... 
+        ; Levanto los pixeles
+        movq xmm3, [rdi + r10 * PIXEL_SIZE] ; xmm3[0:63] = b_0 | g_0 | r_0 | a_0 | b_1 | g_1 | r_1 | a_1
+        ; Desempaqueto a word solo la parte baja
+        pxor xmm8, xmm8                     ; xmm8[0:63] =  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0
+        punpcklbw xmm3, xmm8                ; xmm3 = b_0 | g_0 | r_0 | a_0 | b_1 | g_1 | r_1 | a_1
+        paddsw xmm3, xmm2                   ; xmm3 = b_0 + x_0 | g_0 + x_0 | r_0 + x_0 | FF  | b_1 + x_1 | g_1 + x_1 | r_1 + x_1 | FF  || ... || ... 
+
+        ; Empaqueto de word a byte
+        packuswb xmm3, xmm3      ; xmm3[0:63] = b_0 + x_0 | g_0 + x_0 | r_0 + x_0 | FF | b_1 + x_1 | g_1 + x_1 | r_1 + x_1 | FF
         ; Escribo el resultado
         movq [rsi + r10 * PIXEL_SIZE], xmm3
         
