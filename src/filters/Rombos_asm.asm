@@ -95,11 +95,9 @@ Rombos_asm:
     .loop:
         ; Quiero calcular los ii-es y jj-es
         ;
-        ;   ii_0 = ((s/2)-(i_0%s)) > 0 ? ((s/2)-(i_0%s)) : -((s/2)-(i_0%s))
-        ;        = abs(s/2 - i_0%s)
-        ;   jj_0 = abs(s/2 - j_0%s)
-        ;   ii_1 = abs(s/2 - i_1%s)
-        ;   jj_1 = abs(s/2 - j_1%s)
+        ;   ii = ((s/2) - (i % s)) > 0 ? ((s/2) - (i % s)) : -((s/2) - (i % s))
+        ;      = abs(s/2 - i % s)
+        ;   jj = abs(s/2 - j % s)
         ;
         ; Donde abs es el valor absoluto
 
@@ -124,20 +122,18 @@ Rombos_asm:
         paddd xmm2, xmm4        ; xmm2[i] tiene lo que había mas uno o lo mismo
     
         ; Tengo lo que quería en xmm2
-        ; xmm2 = abs(s/2 - i_0%s) | abs(s/2 - j_0%s) | abs(s/2 - i_1%s) | abs(s/2 - j_0%s)
+        ; xmm2 = abs(s/2 - i_0%s) | abs(s/2 - j_0%s) | abs(s/2 - i_1%s) | abs(s/2 - j_1%s)
         ;      = ii_0 | jj_0 | ii_1 | jj_1
 
         ; Quiero calcular los x-es
         ;
-        ;   x_0 = (ii_0+jj_0-(s/2)) > (s/16) ? 0 : 2*(ii_0+jj_0-(s/2))
-        ;   x_1 = (ii_1+jj_1-(s/2)) > (s/16) ? 0 : 2*(ii_1+jj_1-(s/2))
+        ;   x = (ii+jj - (s/2)) > (s/16) ? 0 : 2*(ii+jj - (s/2))
         ;
-        ; Y noto que es lo mismo que multiplicar por dos siempre, y ver
+        ; Y noto que es lo mismo que multiplicar por dos siempre, y hacer
         ;
-        ;   x_0 = 2*(ii_0+jj_0-(s/2)) > (s/8) ? 0 : 2*(ii_0+jj_0-(s/2))
-        ;   x_1 = 2*(ii_1+jj_1-(s/2)) > (s/8) ? 0 : 2*(ii_1+jj_1-(s/2))
-
-        phaddd xmm2, xmm2   ; xmm2 =    ii_0 + jj_0    |    ii_1 + jj_1    |    ii_0 + jj_0    | ii_1 + jj_1
+        ;   x_0 = 2*(ii+jj - (s/2)) > (s/8) ? 0 : 2*(ii+jj - (s/2))
+                            ; xmm2 =       ii_0        |       jj_0        |       ii_1        |       jj_1
+        phaddd xmm2, xmm2   ; xmm2 =    ii_0 + jj_0    |    ii_1 + jj_1    |    ii_0 + jj_0    |    ii_1 + jj_1
         psubd xmm2, xmm0    ; xmm2 =  ii_0+jj_0 - s/2  |  ii_1+jj_1 - s/2  |  ii_0+jj_0 - s/2  |  ii_1+jj_1 - s/2 
         pslld xmm2, 1       ; xmm2 = 2*(ii_0+jj_0-s/2) | 2*(ii_1+jj_1-s/2) | 2*(ii_0+jj_0-s/2) | 2*(ii_1+jj_1-s/2)
         ; Quiero llevar a 0 los que sean mayores a s/8
