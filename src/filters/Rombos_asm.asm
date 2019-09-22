@@ -34,8 +34,8 @@ NEG_XOR:        dd 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF   ; Máscara p
 INC_ALL:        dd 0x00000001, 0x00000001, 0x00000001, 0x00000001   ; Máscara para sumar 1 a todos
 
 ; Mascaras para operar sobre los x-es
-;         xmm{x} =    b   |   g   |   r   |   a
-ALPHA:  TIMES 2 dw 0x0000, 0x0000, 0x0000, 0xFFFF   ; Poner en 255 el canal alpha 
+;         xmm{x} =   b  |    g  |    r  |    a 
+ALPHA:  TIMES 2 dw 0x0000, 0x0000, 0x0000, 0xFF00   ; Poner en 255 el canal alpha 
 
 section .text
 Rombos_asm:
@@ -174,10 +174,6 @@ Rombos_asm:
         pshuflw xmm2, xmm2, 0b00000000  ; xmm2 = x_0 | x_0 | x_0 | x_0 | x_0 | x_1 | x_0 | x_1
         pshufhw xmm2, xmm2, 0b01010101  ; xmm2 = x_0 | x_0 | x_0 | x_0 | x_1 | x_1 | x_1 | x_1
 
-        ; Pongo el canal de transparencia en 255
-        movq xmm3, [ALPHA]  ; TODO: Podría estar precargada
-        por xmm2, xmm3      ; xmm2 = x_0 | x_0 | x_0 |  FF  | x_1 | x_1 | x_1 |  FF
-
         ; Recuerdo que
         ;
         ;   rdi = src
@@ -189,6 +185,10 @@ Rombos_asm:
         pxor xmm8, xmm8                     ; xmm8[0:63] =  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0
         punpcklbw xmm3, xmm8                ; xmm3 = b_0 | g_0 | r_0 | a_0 | b_1 | g_1 | r_1 | a_1
         paddsw xmm3, xmm2                   ; xmm3 = b_0 + x_0 | g_0 + x_0 | r_0 + x_0 | FF  | b_1 + x_1 | g_1 + x_1 | r_1 + x_1 | FF  || ... || ... 
+
+        ; Pongo el canal alpha en 255
+        movdqu xmm8, [ALPHA]    ; xmm8 = 0000 | 0000 | 0000 | 00FF | 0000 | 0000 | 0000 | 00FF
+        por xmm3, xmm8          ; xmm3 =  __  |  __  |  __  |  FF  |  __  |  __  |  __  |  FF
 
         ; Empaqueto de word a byte
         packuswb xmm3, xmm3      ; xmm3[0:63] = b_0 + x_0 | g_0 + x_0 | r_0 + x_0 | FF | b_1 + x_1 | g_1 + x_1 | r_1 + x_1 | FF
