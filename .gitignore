@@ -21,3 +21,6 @@ exp/tp2
 
 # GDB
 *.gdb_history
+
+# IDE
+*.vscode
