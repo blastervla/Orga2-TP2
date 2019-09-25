@@ -1,32 +1,16 @@
-
 section .rodata
-
-
 section .text
 
 global Bordes_asm
 
-#define PIXEL_OFFSET_RED 0
-#define PIXEL_OFFSET_GREEN 1
-#define PIXEL_OFFSET_BLUE 2
-#define PIXEL_OFFSET_ALPHA 3
 #define PIXEL_SIZE 4
 Bordes_asm:
-;------------------------------------------------------------------------------;
-;   Aridad:     void Bordes_asm (uint8_t *src, uint8_t *dst, int width,
-;                       int height, int src_row_size, int dst_row_size);
-;   
-;   Descripción:
-
-;
-;   Parámetros:
-;               rdi: unit8_t *src
-;               rsi: uint8_t *dst
-;               edx: int width
-;               ecx: int height
-;               r8d: src_row_size
-;               r9d: dst_row_size
-;------------------------------------------------------------------------------;
+; rdi: unit8_t *src
+; rsi: uint8_t *dst
+; edx: int width
+; ecx: int height
+; r8d: src_row_size
+; r9d: dst_row_size
 
     push rbp
     mov rbp, rsp
@@ -37,24 +21,22 @@ Bordes_asm:
 ;   Recorremos la matriz hasta llegar hasta el último pixel que tiene vecinos.
 ;   Este pixel es el (n-1, m-1).
 
-;   Esta mal, pasar a rax, y multiplicar por ecx
-    ;mov eax, edx
-    mul ecx
+    mov eax, edx        ; eax = width
+    mov ecx, ecx        ; rcx = 0x00000000 | height
+    mul rcx             ; rax = width * height
 
 ;   En rax tenemos la ultima fila y columna. mul 32b --> 64b
-    shl r8, 32
-    shr r8, 32
+    ;shl r8, 32
+    ;shr r8, 32
     ;add r10d, ecx
-    sub rax, r8
-    sub rax, 1
-    ; lea rax, [rax + r8 - 1]
+    ;mov r8d, r8d        ; r8 = 0x00000000 | src_row_size 
+    ;sub rax, r8
+    ;sub rax, 1
+    ;lea rax, [rax + r8 - 1]
 
-
- 
-
+    
     pxor xmm0, xmm0
     pxor xmm13, xmm13
-    movdqu xmm15, 0x000000FF000000FF000000FF000000FF ;mask alphas
     .ciclo:
         test rax, rax
         jz .fin
