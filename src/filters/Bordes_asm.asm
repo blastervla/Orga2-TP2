@@ -2,8 +2,7 @@ section .rodata
 section .text
 
 global Bordes_asm
-
-#define PIXEL_SIZE 4
+;#define PIXEL_SIZE 1
 Bordes_asm:
 ; rdi: unit8_t *src
 ; rsi: uint8_t *dst
@@ -12,151 +11,119 @@ Bordes_asm:
 ; r8d: src_row_size
 ; r9d: dst_row_size
 
-    push rbp
-    mov rbp, rsp
+    push r12
+    push r13
+    push r14
 
-    ;xor r10d, r10d
-    ;xor r11d, r11d
+    ;mov r10, rdi
+    ;mov r11, rsi    
 
-;   Recorremos la matriz hasta llegar hasta el último pixel que tiene vecinos.
-;   Este pixel es el (n-1, m-1).
-
-    mov eax, edx        ; eax = width
-    mov ecx, ecx        ; rcx = 0x00000000 | height
-    mul rcx             ; rax = width * height
-
-;   En rax tenemos la ultima fila y columna. mul 32b --> 64b
-    ;shl r8, 32
-    ;shr r8, 32
-    ;add r10d, ecx
-    ;mov r8d, r8d        ; r8 = 0x00000000 | src_row_size 
-    ;sub rax, r8
+    mov eax, ecx        ; eax = height
+    mov eax, eax        ; rax = 0x00000000 | height
+    mov edx, edx        ; rdx = 0x00000000 | width
+    mov r8d, r8d        ; r8  = 0x00000000 | src_row_size
+;   Le decrementamos uno porque queremos recorrer hasta la anteúltima fila.
+;   Seguimos teneiendo que rax = 8*k pues width es multiplo de 8
+    dec rax             ; rax = 0x00000000 | height - 1
+    mul rdx             ; rax = width * (height - 1) = width * height - width
+    sub rax, r8
     ;sub rax, 1
-    ;lea rax, [rax + r8 - 1]
-
     
     pxor xmm0, xmm0
-    pxor xmm13, xmm13
-    .ciclo:
-        test rax, rax
-        jz .fin
+    pxor xmm15, xmm15
+   
+    lea r11, [rdi + r8 +1]
+    lea r10, [r11]
+    sub r10, r8
+    lea r12, [r11 +r8]
+    lea r13, [rsi + r8 +1]
+    lea r14, [rdi + rax]        ; Define pixel_size
+    
+    .loop:
+        cmp r11, r14
+        jge .end
+;       ↖ ↑ ↗  =  xmm1 xmm2 xmm3
+;       ← ⋅ →  =  xmm4   0   xmm6
+;       ↙ ↓ ↘  =  xmm7 xmm8 xmm9
+        movdqu xmm1, [r10 - 1]  ; xmm1 = ↖
+        movdqu xmm2, [r10]      ; xmm2 = ↑
+        movdqu xmm3, [r10 + 1]  ; xmm3 = ↗
+        movdqu xmm4, [r11 - 1]  ; xmm4 = ←
+        movdqu xmm6, [r11 + 1]  ; xmm6 = →
+        movdqu xmm7, [r12 - 1]  ; xmm7 = ↙
+        movdqu xmm8, [r12]      ; xmm8 = ↓
+        movdqu xmm9, [r12 + 1]  ; xmm9 = ↘
+        movdqu xmm10, xmm3      ; xmm10 = ↗
+        movdqu xmm11, xmm9      ; xmm11 = ↘
+        ; Calculamos TotalGx.
+        psubw xmm3, xmm1        ; xmm3[31:0] = ____ | ____ | ↗₁ - ↖₁ | ↗₀ - ↖₀
+        psubw xmm9, xmm7        ; xmm9[31:0] = ____ | ____ | ↘₁ - ↙₁ | ↘₀ - ↙₀
+        psubw xmm6, xmm4        ; xmm6[31:0] = ____ | ____ | →₁ - ←₁ | →₀ - ←₀
 
-        movdqu xmm1, [rdi - r8 - 1]
-        movdqu xmm2, [rdi - r8]
-        movdqu xmm3, [rdi - r8 + 1]
+        punpcklbw xmm6, xmm15   ; xmm6[31:0] = 0x00 | →₁ - ←₁ | 0x00 | →₀ - ←₀
+        psllw xmm6, 1           ; xmm6[31:0] = 2 * (→₁ - ←₁) | 2 * (→₀ - ←₀)
+        punpcklbw xmm3, xmm15   ; xmm3[31:0] = 0x00 | ↗₁ - ↖₁ | 0x00 | ↗₀ - ↖₀
+        punpcklbw xmm9, xmm15   ; xmm9[31:0] = 0x00 | ↘₁ - ↙₁ | 0x00 | ↘₀ - ↙₀    
 
-        movdqu xmm4, [rdi - 1]
-        ;movdqu xmm5, [rdi]
-        movdqu xmm6, [rdi + 1]
-
-        movdqu xmm7, [rdi + r8 - 1]
-        movdqu xmm8, [rdi + r8]
-        movdqu xmm9, [rdi + r8 + 1]
-
-;   Podemos optimizar el uso de xmm1 y xmm9 pues para ambas matrices es
-;   igual como se suma. Los unicos que cambian son xmm3 y xmm7. Los otros 
-;   se usan solo en una matriz o en las dos pero con el mismo valor.
-
-        movdqu xmm10, xmm3
-        movdqu xmm11, xmm7
-        ;copiar xmm9 en vez de xmm7
-
-;   Vamos a sumar de a pares negativos/positivos asi minimizamos la cantidad
-;   de registros a desempaquetar.
-
-        psubb xmm3, xmm1
-
-;   SI PODEMOS NEGAR EL XMM7 DE A PAQUETES DE BYTES, AHORRAMOS COPIAR EL
-;   ALGUNO DE LO S DOS REGISTROS. LO HACEMOS SOBRE XMM7 PUES YA LO TENEMOS QUE
-;   COPIAR PARA EL CALCULO DE GY.
-
-        paddb -xmm7, xmm9
-
-;   Usamos xmm7 pues ya lo copiamos a xmm11. A continuación usamos xmm6 pues
-;   no lo necesitamos para calcular Gy.
-
-        psubb xmm6, xmm4
-        movdqu xmm12, xmm6
-
-;   Desempaquetamos todos los canales a words para multiplicarlos por dos
-;   y no perder información en el cálculo intermedio. xmm13 es un registro
-;   auxiliar con 0.
-
-
-;   Me parece que no es ni necesario pues no vamos a estar restando nada
-;   después de esto. Entonces lo que nos estamos salvando al deempaquetar ahora
-;   lo vamos a perder cuando lo empaquetemos.
-
-;   LA SATURACIÓN ES AL FINAL DE LA SUMA GX, GY
-
-;   No veo como shiftear bytes empaquetados por bits. Para arreglar eso sigo
-;   desempaquetando y shifteando parte alta y baja.
-
-        punpcklbw xmm6, xmm13
-        punpckhbw xmm12, xmm13
-
-;   psll xmm6, 1
-        
-        psllw xmm6, 1
-        psllw xmm12, 1
-
-;   signed porque puede dar negativo
-
-        packsswb xmm6, xmm12
-
-;   resultado Gx
-;       no se si esto está bien, podemos perder alguna precision.
-;       deberiamos satrurar solo al sumarlo con el resultado de gy.
-
-        paddb xmm3, xmm7
-        paddb xmm3, xmm6
-
+        paddw xmm3, xmm9        ; xmm3[15:0] = (↗₀ - ↖₀) + (↘₀ - ↙₀)
+        paddw xmm3, xmm6        ; xmm3[15:0] = (↗₀ - ↖₀) + (↘₀ - ↙₀) + 2*(→₀ - ←₀)
         movdqu xmm0, xmm3
-
-;   Calculo Gy
-
-        psubb xmm11, xmm1
-        psubb xmm9, xmm10
-
-        psubb xmm8, xmm2
-        movdqu xmm12, xmm8
-
-        punpcklbw xmm8, xmm13
-        punpckhbw xmm12, xmm13
-
-        psllw xmm8, 1
-        psllw xmm12, 1
-
-        packuswb xmm8, xmm12
-
-;   resultado Gx
-
-        paddb xmm11, xmm9
-        paddb xmm11, xmm8
-
-        paddb xmm0, xmm11
-
-;   Hay que setear el alpha a 255 con alguna mascara
-
+        pcmpgtw xmm15, xmm3     ; xmm15[15:0]= xmm3[15:0] < 0? 1 : 0
+        ; Tenemos en xmm15 la mascara de negativos
+        ; Haciendo un and con xmm3 nos quedamos solamente los negativos.
+        pand xmm3, xmm15        ; xmm3[15:0] = xmm3[15:0] < 0? xmm3[15:0] : 0
+        ; Haciendo un xor invertimos los bits de los negativos.
+        ; Los que no eran negativos, se quedan en 0.
+        pxor xmm3, xmm15        ; xmm3[15:0] = xmm3[15:0] < 0? !xmm3[15:0] : 0
+        movdqu xmm14, xmm15
+        psrlw xmm14, 15         ; Ej: xmm14 = 1 | 0 | 1 | 1
+        ; Sumando obtenemos el inverso aditivio de todos los negativos.
+        paddw xmm3, xmm14       ; xmm3[15:0] = xmm3[15:0] < 0? -xmm3[15:0] : 0
+        ;movdqu xmm14, xmm15
+        ; Si hacemos un and negado entre la mascara de negativos y xmm0
+        ; Obtenemos en xmm15, los positivos y 0 donde había negativos.
+        pandn xmm15, xmm0
+        ; Si hacemos un or contra el registro con los inversos aditivos,
+        ; tenemos el resultado.
+        por xmm3, xmm15         ; xmm3[15:0] = abs(xmm3[15:0])
+        movdqu xmm0, xmm3
+; Gy
+        pxor xmm15, xmm15
         
-;   Si hacemos el empaquetado ahora los valores mayores a 255 van a saturar
-;   a 255. Debemos sumar todos los registros acá , de forma desempaquetada
-;   y solo empaquetarlos a lo último?
+        psubw xmm7, xmm1        ; xmm7[31:0] = ____ | ____ | ↙₁ - ↖₁ | ↙₀ - ↖₀
+        psubw xmm11, xmm10      ; xmm11[31:0]= ____ | ____ | ↘₁ - ↗₁ | ↘₀ - ↗₀
+        psubw xmm8, xmm2        ; xmm8[31:0] = ____ | ____ | ↓₁ - ↑₁ | ↓₀ - ↑₀
 
-;       Seteamos el alpha.
+        punpcklbw xmm8, xmm15   ; xmm8[31:0] = 0x00 | ↓₁ - ↑₁ | 0x00 | ↓₀ - ↑₀
+        psllw xmm8, 1           ; xmm8[31:0] = 2 * (↓₁ - ↑₁) | 2 * (↓₀ - ↑₀)
+        punpcklbw xmm7, xmm15   ; xmm7[31:0] = 0x00 | ↙₁ - ↖₁ | 0x00 | ↙₀ - ↖₀
+        punpcklbw xmm11, xmm15  ; xmm11[31:0]= 0x00 | ↘₁ - ↗₁ | 0x00 | ↘₀ - ↗₀
 
-        por xmm0, xmm15
+        paddw xmm7, xmm11
+        paddw xmm7, xmm8
+        movdqu xmm12, xmm7
+        ; Generamos la mascara de los negativos para poder hacerles el
+        ; valor absoluto.       ; xmm7  =   >0   |   >0   | .... |   <0  
+        pcmpgtw xmm15, xmm7     ; xmm15 = 0x0000 | 0x0000 | .... | 0xFFFF 
+        pand xmm7, xmm15
+        pxor xmm7, xmm15
+        ; Tenemos en xmm7 los negativos negados bit a bit. Hay que sumarles 1.
+        movdqu xmm14, xmm15     
+        psrlw xmm14, 15         ; xmm14 = 0x0000 | 0x0000 | .... | 0x0001
+        paddw xmm7, xmm14       ; xmm7  =   >0   |   >0   | .... |   >0  
+        pandn xmm15, xmm12
+        por xmm7, xmm15
+        paddw xmm0, xmm7
+        packsswb xmm0, xmm0
+        movdqu [r13], xmm0
 
-        movdqu [rsi], xmm0
-
-        lea rdi, [rdi + PIXEL_SIZE*4]
-        lea rsi, [rsi + PIXEL_SIZE*4]
-        dec rax
-
-        jmp .ciclo
-
-    .fin:
-        call llenarBordes
-
-    pop rbp
-ret
+        add r10, 8
+        add r11, 8
+        add r12, 8
+        add r13, 8
+        jmp .loop
+   .end:
+        pop r14
+        pop r13
+        pop r12
+        ret
