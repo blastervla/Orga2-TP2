@@ -115,7 +115,8 @@ void procesar_opciones(int argc, char **argv, configuracion_t *config) {
         (strcmp(tipo_filtro, "c") != 0 &&
         strcmp(tipo_filtro, "asm") != 0 &&
         strcmp(tipo_filtro, "asm_mid") != 0 &&
-        strcmp(tipo_filtro, "asm_low") != 0)) {
+        strcmp(tipo_filtro, "asm_low") != 0 &&
+        strcmp(tipo_filtro, "asm_ultra_low") != 0)) {
         imprimir_ayuda (argv[0]);
 
         exit ( EXIT_SUCCESS );
@@ -127,6 +128,8 @@ void procesar_opciones(int argc, char **argv, configuracion_t *config) {
         config->tipo_filtro = FILTRO_ASM;
     } else if (strcmp(tipo_filtro, "asm_mid") == 0) {
         config->tipo_filtro = FILTRO_ASM_MID;
+    } else if (strcmp(tipo_filtro, "asm_ultra_low") == 0) {
+        config->tipo_filtro = FILTRO_ASM_ULTRA_LOW;
     } else {
         config->tipo_filtro = FILTRO_ASM_LOW;
     }
