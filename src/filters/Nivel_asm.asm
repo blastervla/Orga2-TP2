@@ -199,6 +199,7 @@ Nivel_asm_ultra_low:    ; RDI = pixel[][] src
     and r13b, r11b
     and r14b, r11b
 
+    ; ALTERNATIVA 1 =============
     shl r12b, cl
     shl r13b, cl
     shl r14b, cl
@@ -206,6 +207,36 @@ Nivel_asm_ultra_low:    ; RDI = pixel[][] src
     sar r12b, 7                         ; Broadcasteo el bit que sobrevivio (si sobrevivio)
     sar r13b, 7
     sar r14b, 7
+    ; ALTERNATIVA 1 =============
+
+    ; ALTERNATIVA 2 =============
+; .cmpR12:
+;     cmp r12b, 0
+;     je .ceroR12
+;     mov r12b, 0xFF
+;     jmp .cmpR13
+; .ceroR12:
+;     mov r12b, 0
+
+; .cmpR13:
+;     cmp r13b, 0
+;     je .ceroR13
+;     mov r13b, 0xFF
+;     jmp .cmpR14
+; .ceroR13:
+;     mov r13b, 0
+
+; .cmpR14:
+;     cmp r14b, 0
+;     je .ceroR14
+;     mov r14b, 0xFF
+;     jmp .setAlpha
+; .ceroR14:
+;     mov r14b, 0
+
+; .setAlpha:
+    ; ALTERNATIVA 2 =============
+
     
     mov r15b, 0xFF
     
