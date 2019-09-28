@@ -90,6 +90,13 @@ Rombos_asm:
     movdqu xmm1, [INITIAL_IDXS] ; xmm1 = i_0 % s | j_0 %s | i_1 %s | j_1 % s
                                 ;      =     0   |    0   |    0   |    1
 
+    ; Precargo máscaras
+    movdqu xmm12, [NEG_XOR]
+    movdqu xmm11, [INC_ALL]
+    movdqu xmm10, [INC_J]
+    movdqu xmm9,  [INC_I]
+    movdqu xmm8,  [ALPHA]
+
     ; Inicializo los offsets / contadores
     xor r9, r9      ; r9 = 0, lo uso como bytes_row_actual
     xor r10, r10    ; r10 = 0, lo uso como offset de src y dst
@@ -126,13 +133,13 @@ Rombos_asm:
                             ;           0x00000000 si no          (positivo)
         ; Invierto el signo de los que son negativos, a los que no, voy a estar
         ; haciendo xor con 0 y sumando 0, lo cual no los altera.
-        movdqu xmm4, [NEG_XOR]  ; xmm4 = FFFFFFFF | FFFFFFFF | FFFFFFFF | FFFFFFFF
-        pand xmm4, xmm3         ; xmm4[i] tiene Fs para los neg. y 0s para los pos.
-        pxor xmm2, xmm4         ; xmm2[i] tiene el inverso para los negativos y lo mismo para positivos
+        movdqu xmm4, xmm12  ; xmm4 = FFFFFFFF | FFFFFFFF | FFFFFFFF | FFFFFFFF
+        pand xmm4, xmm3     ; xmm4[i] tiene Fs para los neg. y 0s para los pos.
+        pxor xmm2, xmm4     ; xmm2[i] tiene el inverso para los negativos y lo mismo para positivos
         
-        movdqu xmm4, [INC_ALL]  ; xmm4 = 1 | 1 | 1 | 1
-        pand xmm4, xmm3         ; xmm4[i] tiene 1 para los neg. y 0 para los pos.
-        paddd xmm2, xmm4        ; xmm2[i] tiene lo que había mas uno o lo mismo
+        movdqu xmm4, xmm11  ; xmm4 = 1 | 1 | 1 | 1
+        pand xmm4, xmm3     ; xmm4[i] tiene 1 para los neg. y 0 para los pos.
+        paddd xmm2, xmm4    ; xmm2[i] tiene lo que había mas uno o lo mismo
     
         ; Tengo lo que quería en xmm2
         ; xmm2 = abs(s/2 - i_0%s) | abs(s/2 - j_0%s) | abs(s/2 - i_1%s) | abs(s/2 - j_1%s)
@@ -194,12 +201,12 @@ Rombos_asm:
         ; Levanto los pixeles
         movq xmm3, [rdi + r10 * PIXEL_SIZE] ; xmm3[0:63] = b_0 | g_0 | r_0 | a_0 | b_1 | g_1 | r_1 | a_1
         ; Desempaqueto a word solo la parte baja
-        pxor xmm8, xmm8                     ; xmm8[0:63] =  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0
-        punpcklbw xmm3, xmm8                ; xmm3 =    b_0    |    g_0    |    r_0    | a_0 |    b_1    |    g_1    |    r_1    | a_1
+        pxor xmm7, xmm7                     ; xmm7[0:63] =  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0
+        punpcklbw xmm3, xmm7                ; xmm3 =    b_0    |    g_0    |    r_0    | a_0 |    b_1    |    g_1    |    r_1    | a_1
         paddsw xmm3, xmm2                   ; xmm3 = b_0 + x_0 | g_0 + x_0 | r_0 + x_0 |  _  | b_1 + x_1 | g_1 + x_1 | r_1 + x_1 |  _
 
         ; Pongo el canal alpha en 255
-        movdqu xmm8, [ALPHA]    ; xmm8 = 0000 | 0000 | 0000 | 00FF | 0000 | 0000 | 0000 | 00FF
+                                ; xmm8 = 0000 | 0000 | 0000 | 00FF | 0000 | 0000 | 0000 | 00FF
         por xmm3, xmm8          ; xmm3 =  __  |  __  |  __  |  FF  |  __  |  __  |  __  |  FF
 
         ; Empaqueto de word a byte
@@ -217,8 +224,8 @@ Rombos_asm:
         ; Tengo que incrementar los i solo cuando hacen wraparound los j.
 
         ; Incremento los j-es
-        movdqu xmm2, [INC_J]    ; xmm2 = 0 | 2 | 0 | 2
-        paddd xmm1, xmm2        ; xmm1 = i_0 | j_0 + 2 | i_1 | j_1 + 2
+                            ; xmm10 =  0  |     2   |  0  |     2
+        paddd xmm1, xmm10   ; xmm1  = i_0 | j_0 + 2 | i_1 | j_1 + 2
 
         ; Reseteo los que se pasaron
         ; mod con el mínimo entre width y size, está en xmm13
@@ -228,8 +235,8 @@ Rombos_asm:
 
         pcmpgtd xmm4, xmm1      ; xmm4[i] = 0xFFFFFFFF si xmm1[i] < s
                                 ;           0x00000000 si no
-        movdqu xmm5, [NEG_XOR]  ; xmm5 = FFFFFFFF | FFFFFFFF | ... | ...
-        pxor xmm4, xmm5         ; xmm4[i] = 0xFFFFFFFF si xmm1[i] >= s
+                                ; xmm12 = FFFFFFFF | FFFFFFFF | ... | ...
+        pxor xmm4, xmm12        ; xmm4[i] = 0xFFFFFFFF si xmm1[i] >= s
                                 ;           0x00000000 si no
 
         pand xmm3, xmm4         ; xmm3[i] = size    si se paso
@@ -246,8 +253,8 @@ Rombos_asm:
         jb .dont_inc_row
         xor r9, r9            ; bytes_row_actual = 0
 
-        movdqu xmm2, [INC_I]; xmm2 =  1  |  0  |  1  |  0
-        paddd xmm1, xmm2    ; xmm1 = i_0 + 1 | j_0 + 2 % s | i_1 + 1 | j_1 + 2 % s
+                            ; xmm9 = 1 | 0 | 1 | 0
+        paddd xmm1, xmm9    ; xmm1 = i_0 + 1 | j_0 + 2 % s | i_1 + 1 | j_1 + 2 % s
 
         ; Resto size a los que se pasaron
         ; Mod con el minimo entre height y size, está en xmm14
@@ -257,8 +264,8 @@ Rombos_asm:
 
         pcmpgtd xmm4, xmm1      ; xmm4[i] = 0xFFFFFFFF si xmm1[i] < s
                                 ;           0x00000000 si no
-        movdqu xmm5, [NEG_XOR]  ; xmm5 = FFFFFFFF | FFFFFFFF | ... | ...
-        pxor xmm4, xmm5         ; xmm4[i] = 0xFFFFFFFF si xmm1[i] >= s
+                                ; xmm12 = FFFFFFFF | FFFFFFFF | ... | ...
+        pxor xmm4, xmm12        ; xmm4[i] = 0xFFFFFFFF si xmm1[i] >= s
                                 ;           0x00000000 si no
 
         pand xmm3, xmm4         ; xmm3[i] = size    si se paso
