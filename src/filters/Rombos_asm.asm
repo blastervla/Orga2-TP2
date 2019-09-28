@@ -141,11 +141,13 @@ Rombos_asm:
         ; Quiero llevar a 0 los que sean mayores a s/8
         movdqu xmm3, xmm0   ; xmm3 = s/2 | s/2 | s/2 | s/2
         psrld xmm3, 2       ; xmm3 = s/8 | s/8 | s/8 | s/8
-        pcmpgtd xmm3, xmm2  ; xmm3[i] = FFFFFFFF    si s/8 > 2*(ii_x+jj_x-s/2)
+        movdqu xmm4, xmm2   ; xmm4 = 2*(ii_0+jj_0-s/2) | 2*(ii_1+jj_1-s/2) | 2*(ii_0+jj_0-s/2) | 2*(ii_1+jj_1-s/2)
+        pcmpgtd xmm2, xmm3  ; xmm2[i] = FFFFFFFF    si 2*(ii_x+jj_x-s/2) > s/8
                             ;           00000000    si no
-        ; Tengo 0 donde quiero que quede 0 y 1 donde quiero que quede lo mismo.
-        ; Con un AND logro eso
-        pand xmm2, xmm3     ; xmm2[i] = 0           si era mayor a s/8
+        ; Tengo FF donde quiero que quede 0 y 0 donde quiero que quede lo mismo.
+        ; Debería negarlo y luego hacer un and.
+        ; Con un ANDN logro eso
+        pandn xmm2, xmm4    ; xmm2[i] = 0           si era mayor a s/8
                             ;           lo mismo    si no
 
         ; Tengo en xmm2 lo que quería
