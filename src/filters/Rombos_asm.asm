@@ -35,7 +35,7 @@ INC_ALL:        dd 0x00000001, 0x00000001, 0x00000001, 0x00000001   ; Máscara p
 
 ; Mascaras para operar sobre los x-es
 ;         xmm{x} =   b  |    g  |    r  |    a 
-ALPHA:  TIMES 2 dw 0x0000, 0x0000, 0x0000, 0xFF00   ; Poner en 255 el canal alpha 
+ALPHA:  TIMES 2 dw 0x0000, 0x0000, 0x0000, 0x00FF   ; Poner en 255 el canal alpha 
 
 section .text
 Rombos_asm:
@@ -133,6 +133,7 @@ Rombos_asm:
         ; Y noto que es lo mismo que multiplicar por dos siempre, y hacer
         ;
         ;   x_0 = 2*(ii+jj - (s/2)) > (s/8) ? 0 : 2*(ii+jj - (s/2))
+
                             ; xmm2 =       ii_0        |       jj_0        |       ii_1        |       jj_1
         phaddd xmm2, xmm2   ; xmm2 =    ii_0 + jj_0    |    ii_1 + jj_1    |    ii_0 + jj_0    |    ii_1 + jj_1
         psubd xmm2, xmm0    ; xmm2 =  ii_0+jj_0 - s/2  |  ii_1+jj_1 - s/2  |  ii_0+jj_0 - s/2  |  ii_1+jj_1 - s/2 
@@ -180,8 +181,8 @@ Rombos_asm:
         movq xmm3, [rdi + r10 * PIXEL_SIZE] ; xmm3[0:63] = b_0 | g_0 | r_0 | a_0 | b_1 | g_1 | r_1 | a_1
         ; Desempaqueto a word solo la parte baja
         pxor xmm8, xmm8                     ; xmm8[0:63] =  0  |  0  |  0  |  0  |  0  |  0  |  0  |  0
-        punpcklbw xmm3, xmm8                ; xmm3 = b_0 | g_0 | r_0 | a_0 | b_1 | g_1 | r_1 | a_1
-        paddsw xmm3, xmm2                   ; xmm3 = b_0 + x_0 | g_0 + x_0 | r_0 + x_0 | FF  | b_1 + x_1 | g_1 + x_1 | r_1 + x_1 | FF  || ... || ... 
+        punpcklbw xmm3, xmm8                ; xmm3 =    b_0    |    g_0    |    r_0    | a_0 |    b_1    |    g_1    |    r_1    | a_1
+        paddsw xmm3, xmm2                   ; xmm3 = b_0 + x_0 | g_0 + x_0 | r_0 + x_0 |  _  | b_1 + x_1 | g_1 + x_1 | r_1 + x_1 |  _
 
         ; Pongo el canal alpha en 255
         movdqu xmm8, [ALPHA]    ; xmm8 = 0000 | 0000 | 0000 | 00FF | 0000 | 0000 | 0000 | 00FF
