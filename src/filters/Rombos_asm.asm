@@ -29,7 +29,6 @@ section .rodata
 INITIAL_IDXS:   dd 0x00000000, 0x00000000, 0x00000000, 0x00000001   ; Estado inicial de los indices
 INC_J:          dd 0x00000000, 0x00000002, 0x00000000, 0x00000002   ; Incrementa los j-es
 INC_I:          dd 0x00000001, 0x00000000, 0x00000001, 0x00000000   ; Incrementa los i-es
-MOD_SIZE:       dd SIZE,       SIZE,       SIZE,       SIZE         ; Máscara para hacer % size con cmp
 NEG_XOR:        dd 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF   ; Máscara para negar con xor
 INC_ALL:        dd 0x00000001, 0x00000001, 0x00000001, 0x00000001   ; Máscara para sumar 1 a todos
 
@@ -65,13 +64,26 @@ Rombos_asm:
     ; Dos cosas usadas en todas las iteraciones son size/2 y los índices, los
     ; guardo en dos registros para ahorrar computo.
 
-    ; Muevo size/2 a xmm0
+    ; Preparo las mascaras para poder reiniciar los índices
+    ; Muevo size a xmm15
     mov r10d, SIZE              ; r10 = size     
-    movd xmm0, r10d             ; xmm0[31:0] = size
-    ; Hago broadcast de size
-    pshufd xmm0, xmm0, 0x00     ; xmm0 = size | size | size | size
+    movd xmm15, r10d            ; xmm15[31:0] = size
+    pshufd xmm15, xmm15, 0x00   ; xmm15 = size | size | size | size
+    ; Muevo height a xmm14
+    movd xmm14, ecx             ; xmm14[32:0] = height
+    pshufd xmm14, xmm14, 0x00   ; xmm14 = h | h | h | h
+    ; Muevo width a xmm13
+    movd xmm13, edx             ; xmm13[32:0] = width
+    pshufd xmm13, xmm13, 0x00   ; xmm13 = w | w | w | w
+
+    ; Me quedo con los minimos
+    pminud xmm14, xmm15         ; xmm14[i] = min{size, height}
+    pminud xmm13, xmm15         ; xmm13[i] = min{size, width}
+
+    ; Muevo size/2 a xmm0
+    movdqu xmm0, xmm15      ; xmm0 = size | size | size | size
     ; Divido size por 2 shifteando a la derecha
-    psrld xmm0, 1               ; xmm0 = s/2  | s/2  | s/2  | s/2
+    psrld xmm0, 1           ; xmm0 = s/2  | s/2  | s/2  | s/2
 
     ; Muevo los índices iniciales a xmm1
     ; TODO: usar align y mvdqa
@@ -209,8 +221,10 @@ Rombos_asm:
         paddd xmm1, xmm2        ; xmm1 = i_0 | j_0 + 2 | i_1 | j_1 + 2
 
         ; Reseteo los que se pasaron
-        movdqu xmm4, [MOD_SIZE] ; xmm4 = s | s | s | s
-        movdqu xmm3, xmm4       ; xmm3 = s | s | s | s
+        ; mod con el mínimo entre width y size, está en xmm13
+        ; Por lo general va a ser size entonces por conveniencia lo comento así
+        movdqu xmm3, xmm13      ; xmm3 = s | s | s | s
+        movdqu xmm4, xmm13      ; xmm4 = s | s | s | s
 
         pcmpgtd xmm4, xmm1      ; xmm4[i] = 0xFFFFFFFF si xmm1[i] < s
                                 ;           0x00000000 si no
@@ -236,8 +250,10 @@ Rombos_asm:
         paddd xmm1, xmm2    ; xmm1 = i_0 + 1 | j_0 + 2 % s | i_1 + 1 | j_1 + 2 % s
 
         ; Resto size a los que se pasaron
-        movdqu xmm4, [MOD_SIZE] ; xmm4 = s | s | s | s
-        movdqu xmm3, xmm4       ; xmm3 = s | s | s | s
+        ; Mod con el minimo entre height y size, está en xmm14
+        ; Por lo general va a ser size entonces por conveniencia lo comento así
+        movdqu xmm3, xmm13      ; xmm3 = s | s | s | s
+        movdqu xmm4, xmm13      ; xmm4 = s | s | s | s
 
         pcmpgtd xmm4, xmm1      ; xmm4[i] = 0xFFFFFFFF si xmm1[i] < s
                                 ;           0x00000000 si no
