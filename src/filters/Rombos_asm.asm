@@ -30,7 +30,6 @@ INITIAL_IDXS:   dd 0x00000000, 0x00000000, 0x00000000, 0x00000001   ; Estado ini
 INC_J:          dd 0x00000000, 0x00000002, 0x00000000, 0x00000002   ; Incrementa los j-es
 INC_I:          dd 0x00000001, 0x00000000, 0x00000001, 0x00000000   ; Incrementa los i-es
 NEG_XOR:        dd 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF   ; Máscara para negar con xor
-INC_ALL:        dd 0x00000001, 0x00000001, 0x00000001, 0x00000001   ; Máscara para sumar 1 a todos
 
 ; Mascaras para operar sobre los x-es
 ;         xmm{x} =   b  |    g  |    r  |    a 
@@ -92,7 +91,6 @@ Rombos_asm:
 
     ; Precargo máscaras
     movdqu xmm12, [NEG_XOR]
-    movdqu xmm11, [INC_ALL]
     movdqu xmm10, [INC_J]
     movdqu xmm9,  [INC_I]
     movdqu xmm8,  [ALPHA]
@@ -124,23 +122,8 @@ Rombos_asm:
         movdqu xmm2, xmm0   ; xmm2 = s/2 | s/2 | s/2 | s/2
         psubd xmm2, xmm1    ; xmm2 = s/2 - i_0 | s/2 - j_0 | s/2 - i_1 | s/2 - j_1
         ; Si quedo algo negativo, quiero que sea positivo.
-        ; Para esto, invierto el signo en complemento a dos, es decir, 
-        ; niego (xor) y luego sumo 1.
-        ; Veo cuales son negativos
-        pxor xmm3, xmm3     ; xmm3 = 0 | 0 | 0 | 0
-        pcmpgtd xmm3, xmm2  ; xmm3[i] > xmm2[i] <=> xmm2[i] < 0
-                            ; xmm3[i] = 0xFFFFFFFF si xmm2[i] < 0 (negativo)
-                            ;           0x00000000 si no          (positivo)
-        ; Invierto el signo de los que son negativos, a los que no, voy a estar
-        ; haciendo xor con 0 y sumando 0, lo cual no los altera.
-        movdqu xmm4, xmm12  ; xmm4 = FFFFFFFF | FFFFFFFF | FFFFFFFF | FFFFFFFF
-        pand xmm4, xmm3     ; xmm4[i] tiene Fs para los neg. y 0s para los pos.
-        pxor xmm2, xmm4     ; xmm2[i] tiene el inverso para los negativos y lo mismo para positivos
-        
-        movdqu xmm4, xmm11  ; xmm4 = 1 | 1 | 1 | 1
-        pand xmm4, xmm3     ; xmm4[i] tiene 1 para los neg. y 0 para los pos.
-        paddd xmm2, xmm4    ; xmm2[i] tiene lo que había mas uno o lo mismo
-    
+        pabsd xmm2, xmm2
+
         ; Tengo lo que quería en xmm2
         ; xmm2 = abs(s/2 - i_0%s) | abs(s/2 - j_0%s) | abs(s/2 - i_1%s) | abs(s/2 - j_1%s)
         ;      = ii_0 | jj_0 | ii_1 | jj_1
