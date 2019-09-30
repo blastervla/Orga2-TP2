@@ -1,4 +1,6 @@
 extern malloc
+extern free
+
 global Rombos_asm
 global Rombos_pclc_asm
 
@@ -318,6 +320,8 @@ Rombos_pclc_asm:
 
     mov rbx, rdx    ; rbx = width
     mov r12, rcx    ; r12 = height
+    xor r13, r13    ; r13 = i
+    xor r14, r14    ; r14 = j
 
     ; Temporalmente me guardo los parámetros de entrada en la pila para después
     ; reestablecerlos
@@ -363,9 +367,6 @@ Rombos_pclc_asm:
     ; Muevo los índices iniciales a xmm1
     movdqu xmm1, [INITIAL_IDXS] ; xmm1 = i_0 % s | j_0 %s | i_1 %s | j_1 % s
                                 ;      =     0   |    0   |    0   |    1
-
-    xor r13, r13    ; r13 = i
-    xor r14, r14    ; r14 = j
 
     ; Precalculo
     ; ----------
@@ -436,15 +437,15 @@ Rombos_pclc_asm:
         ;   
         ;   pos = pcalc_start + cell_size * i * row_size
         ;                     + cell_size * j
+        ;       = pclc_start + cell_size * (i * row_size + j)
         ;
         ; Calculo el offset
         mov rax, PCLC_ROW_SIZE          ; rax = row_size
         mul r13                         ; rax = row_size * i
-        lea rax, [rax * PCLC_CELL_SIZE] ; rax = cell_size * i * row_size
-        lea r9, [r14 * PCLC_CELL_SIZE]  ; r9 = cell_size * j
-        add r9, rax                     ; r9 = cell_size * j + cell_size * i * row_size
+        add rax, r14                    ; rax = row_size * i + j
+        lea rax, [rax * PCLC_CELL_SIZE] ; rax = (row_size * i + j) * cell_size
         ; Escribo en pclc
-        movdqu [r15 + r9], xmm2
+        movdqu [r15 + rax], xmm2
 
         ; Incremento los índices
         ; Incremento j por 2
@@ -461,7 +462,7 @@ Rombos_pclc_asm:
 
         ; Si me pasé con i, termine
         cmp r13, SIZE   ; cmp i, 64
-        jb .pclc_loop  ; if i < 64 loop 
+        jb .pclc_loop   ; if i < 64 goto loop 
 
     ; Procesamiento de la imagen
     ; --------------------------
@@ -470,12 +471,12 @@ Rombos_pclc_asm:
     ;
     ;   max_offset = height * width - 2 (ya que avanzo de a 2 pixeles)
     ;
-    ; edx = width
-    ; ecx = height
+    ; rbx = width
+    ; r12 = height
     ; Los multiplico usando `mul` en 64 bits, y como son de 32 el resultado
     ; me queda en rax
     mov eax, ebx        ; eax = width
-    mul r12             ; rax = rax * rcx = width * height
+    mul r12             ; rax = width * height
     mov r11, rax        ; r11 = siguiente a max_offset
 
     ; Para reiniciar los índices, ahora tengo
@@ -496,10 +497,10 @@ Rombos_pclc_asm:
     movd ebx, xmm13             ; edx = min{size, width}
 
     ; Inicializo los contadores
-    xor r13, r13    ; r13 = i (en pclc)
-    xor r14, r14    ; r14 = j (en pclc)
     xor r9,  r9     ; r9  = 0 (bytes_row_actual)
     xor r10, r10    ; r10 = 0 (offset de src y dst)
+    xor r13, r13    ; r13 = i (indice en pclc)
+    xor r14, r14    ; r14 = j (indice en pclc)
 
     .loop:
         ; Levanto en xmm2 los calculos para los indices
@@ -510,11 +511,10 @@ Rombos_pclc_asm:
         ; Calculo el offset
         mov rax, PCLC_ROW_SIZE          ; rax = row_size
         mul r13                         ; rax = row_size * i
-        lea rax, [rax * PCLC_CELL_SIZE] ; rax = cell_size * i * row_size
-        lea r9, [r14 * PCLC_CELL_SIZE]  ; r9 = cell_size * j
-        add r9, rax                     ; r9 = cell_size * j + cell_size * i * row_size
+        add rax, r14                    ; rax = row_size * i + j
+        lea rax, [rax * PCLC_CELL_SIZE] ; rax = (row_size * i + j) * cell_size
         ; Levanto
-        movdqu xmm2, [r15 + r9]
+        movdqu xmm2, [r15 + rax]
 
         ; Recuerdo que
         ;
