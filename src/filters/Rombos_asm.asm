@@ -280,26 +280,23 @@ ret
 ;
 ; Levanta de a dos pixeles, pero precalcula lo necesario con los índices y lo
 ; guarda en memoria. 
-; Inicialmente uno podría pensar que como tiene que levantarlos de memoria, que
-; no va a ser más eficiente, sino que va a ser más caro.
-; Pero como son pocos calculos, probablemente entran todos en el caché L1 y 
-; luego es rápido de ir a buscar, entonces vale la pena.
+; Inicialmente se podría pensar que como tiene que levantarlos de memoria, que
+; sería más eficiente. Pero como son pocos calculos, probablemente entran todos 
+; en el caché L1 y luego es rápido de ir a buscar, entonces vale la pena.
 ;
-; Precalculo y guardo en memoria los calculos de los indices
 ; Como se hacen 4 a la vez, los x-es calculados tienen la siguiente pinta:
 ;
 ;   xmm2 = x_0 | x_0 | x_0 | x_0 | x_1 | x_1 | x_1 | x_1
 ;
 ; Los almaceno de forma tal que lo único que se tenga que hacer dentro del
-; ciclo sea levantar dos celdas segudas, según corresponda a cada i y j.
-; Para eso, uso una matriz cuadrada de tamaño SIZE celdas de 8 bytes
+; ciclo sea levantar dos celdas seguidas, según corresponda a cada i y j.
+; Para eso, uso una matriz cuadrada de tamaño SIZE, con celdas de 8 bytes
 ; Voy a necesitar
 ;   (SIZE^2 * 8) bytes 
 ;       = 64^2 * 8 bytes
 ;       = 32 KB
-; De memoria
 
-%define PCLC_SIZE       62768
+%define PCLC_SIZE       32768
 %define PCLC_ROW_SIZE   64
 %define PCLC_CELL_SIZE  8
 
@@ -580,7 +577,10 @@ Rombos_pclc_asm:
         cmp r10, r11        ; cmp offset, max_offset
         jne .loop
 
-    ; Termine     
+    ; Hago free de lo precalculado
+    mov rdi, r15
+    call free
+
     pop r15
     pop r14
     pop r13
