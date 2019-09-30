@@ -454,8 +454,18 @@ Rombos_pclc_asm:
         ; Si me pasé de size, lo vuelvo a 0 e incremento i
         cmp r14, SIZE       ; cmp j, 64
         jb .not_inc_i
+
         xor r14, r14        ; j = 0
-        psubd xmm1, xmm15   ; xmm1 = i_0 | j_0 - size | i_1 | j_1 - size
+        ; Quiero restarle size solo a los js (o sea, los que se pasaron de
+        ; size) así que comparo con size y luego hago un and con un registro
+        ; que tenga size
+        movdqu xmm7, xmm15  ; xmm7 = size | size | size | size
+        pcmpgtd xmm7, xmm1  ; xmm7[i] = FF si xmm1[i] < size
+                            ;           00 si no
+        ; (quiero lo opuesto, quedarme con los que sean mayores, hago un andn)
+        pandn xmm7, xmm15   ; xmm7[i] = size si xmm1[i] > size 
+        psubd xmm1, xmm7    ; xmm1 = i_0 | j_0 - size | i_1 | j_1 - size
+
         inc r13             ; i++
         paddd xmm1, xmm9    ; xmm1 = i_0 + 1 | j_0 | i_1 + 1 | j_1
         .not_inc_i:
