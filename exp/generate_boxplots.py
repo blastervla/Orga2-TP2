@@ -3,7 +3,7 @@
 import sys
 import os
 from pylab import plot, show, savefig, xlim, figure, \
-                hold, ylim, legend, boxplot, setp, axes, subplot, ylabel, xlabel
+                ylim, legend, boxplot, setp, axes, subplot, ylabel, xlabel
 
 # function for setting the colors of the box plots pairs
 def setBoxColors(bp):
@@ -61,7 +61,7 @@ def main(argv):
   else:
     data = []
     names = []
-    for i in xrange(len(argv) - 1):
+    for i in range(len(argv) - 1):
       string = argv[i+1]
       name = string.split("=")[0]
       measures = string.split("=")[1]
