@@ -7,6 +7,16 @@
 void Bordes_asm (uint8_t *src, uint8_t *dst, int width, int height,
                       int src_row_size, int dst_row_size);
 
+void Bordes_asm_twice_unrolled (uint8_t *src, uint8_t *dst, int width, int height,
+                      int src_row_size, int dst_row_size);
+
+void Bordes_asm_four_times_unrolled (uint8_t *src, uint8_t *dst, int width, int height,
+                      int src_row_size, int dst_row_size);
+                      
+void Bordes_asm_eight_times_unrolled (uint8_t *src, uint8_t *dst, int width, int height,
+                      int src_row_size, int dst_row_size);
+
+
 void Bordes_c   (uint8_t *src, uint8_t *dst, int width, int height,
                       int src_row_size, int dst_row_size);
 
@@ -20,7 +30,7 @@ void leer_params_Bordes(configuracion_t *config, int argc, char *argv[]) {
 
 void aplicar_Bordes(configuracion_t *config)
 {
-    Bordes_fn_t *Bordes = SWITCH_C_ASM( config, Bordes_c, Bordes_asm );
+    Bordes_fn_t *Bordes = SWITCH_C_ASM( config, Bordes_c, Bordes_asm, Bordes_asm_twice_unrolled, Bordes_asm_four_times_unrolled, Bordes_asm_eight_times_unrolled);
     buffer_info_t info = config->src;
     Bordes(info.bytes, config->dst.bytes, info.width, info.height, 
             info.row_size, config->dst.row_size);
