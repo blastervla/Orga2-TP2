@@ -19,7 +19,7 @@ void leer_params_Rombos(configuracion_t *config, int argc, char *argv[]) {
 
 void aplicar_Rombos(configuracion_t *config)
 {
-    Rombos_fn_t *Rombos = SWITCH_C_ASM( config, Rombos_c, Rombos_asm,  Rombos_asm,  Rombos_asm,  Rombos_asm );
+    Rombos_fn_t *Rombos = SWITCH_C_ASM( config, Rombos_c, Rombos_asm );
     buffer_info_t info = config->src;
     Rombos(info.bytes, config->dst.bytes, info.width, info.height, 
             info.row_size, config->dst.row_size);

@@ -5,13 +5,6 @@ section .text
 global Bordes_asm
 
 Bordes_asm:
-; rdi: unit8_t *src
-; rsi: uint8_t *dst
-; edx: int width
-; ecx: int height
-; r8d: src_row_size
-; r9d: dst_row_size
-
     push r12
     push r13
     push r14
@@ -29,7 +22,7 @@ Bordes_asm:
     lea r11, [rdi + r8]         ; r11 --> (-1, 0) | (0, 0) | (1, 0)
     lea r12, [rdi + r8*2]       ; r12 --> (-1, 1) | (0, 1) | (1, 1)
     lea r13, [rsi + r8]         ; Donde (0, 0) es el pixel que estamos
-    lea r14, [rdi + rax - 8]    ; procesando.
+    lea r14, [rdi + rax - 16]   ; procesando.
                                 ; Vamos a hacer la última iteración aparte pues
     pxor xmm15, xmm15           ; si no lo hacemos, estamos haciendo un invalid
                                 ; read cuando accedemos a r12.
@@ -38,7 +31,7 @@ Bordes_asm:
     jle .edges   ; apuntadas por r12 y r11 están fuera de rango.
     .loop:
         cmp r11, r14
-        je .end_loop
+        jge .end_loop
 
         movq xmm1, [r10]        ; xmm1 : ↖ - Esquina superior izquierda.
         movq xmm2, [r10 + 1]    ; xmm2 : ^ - Medio superior.
@@ -51,8 +44,6 @@ Bordes_asm:
 
         movdqu xmm9, xmm3       ; Copiamos xmm3, xmm8 pues los tenemos
         movdqu xmm10, xmm8      ; que usar para el calculo de Total_Gy.
-
-        ;pxor xmm15, xmm15
 
         punpcklbw xmm1, xmm15   ; xmm1[31:0] = 0x00 | ↖₁ | 0x00 | ↖₀
         punpcklbw xmm3, xmm15   ; xmm3[31:0] = 0x00 | ↗₁ | 0x00 | ↗₀
@@ -69,26 +60,67 @@ Bordes_asm:
 
         paddw xmm3, xmm8
         paddw xmm3, xmm5
-        
-        ;Valor Absoluto
-        ; movdqu xmm14, xmm3
-        ; pcmpgtw xmm15, xmm3
-        ; movdqu xmm13, xmm15
-        ; psrlw xmm13, 15
-
-        ; pand xmm3, xmm15
-        ; pxor xmm3, xmm15
-        ; paddw xmm3, xmm13
-
-        ; pandn xmm15, xmm14
-        ; por xmm3, xmm15
 
         pabsw xmm3, xmm3
         movdqu xmm0, xmm3      
 
-;       Ya hicimos estos unpacks cuando calculamos Total_Gx
-        ;punpcklbw xmm1, xmm15  ; xmm1[31:0] = 0x00 | ↖₁ | 0x00 | ↖₀
-        ;punpcklbw xmm6, xmm15  ; xmm6[31:0] = 0x00 | ↙₁ | 0x00 | ↙₀
+        psubw xmm6, xmm1        ; xmm6[31:0] = ↙₁ - ↖₁ | ↙₀ - ↖₀
+
+        punpcklbw xmm9, xmm15   ; xmm3[31:0]  = 0x00 | ↗₁ | 0x00 | ↗₀
+        punpcklbw xmm10, xmm15  ; xmm10[31:0] = 0x00 | ↘₁ | 0x00 | ↘₀
+        psubw xmm10, xmm9       ; xmm10[31:0] = ↘₁ - ↗₁ | ↘₀ - ↗₀
+
+        punpcklbw xmm2, xmm15   ; xmm2[31:0] = 0x00 | ^₁ | 0x00 | ^₀
+        punpcklbw xmm7, xmm15   ; xmm7[31:0] = 0x00 | v₁ | 0x00 | v₀
+        psubw xmm7, xmm2        ; xmm7[31:0] = v₁ - ^₁ | v₀ - ^₀
+        psllw xmm7, 1           ; xmm7[31:0] = 2*(v₁ - ^₁) | 2*(v₀ - ^₀)
+
+        paddw xmm6, xmm10
+        paddw xmm6, xmm7
+
+        pabsw xmm6, xmm6
+        
+        paddw xmm0, xmm6
+        packuswb xmm0, xmm0
+
+        movq [r13 + 1], xmm0
+
+        add r13, 8
+        add r12, 8
+        add r11, 8
+        add r10, 8
+
+        movq xmm1, [r10]        ; xmm1 : ↖ - Esquina superior izquierda.
+        movq xmm2, [r10 + 1]    ; xmm2 : ^ - Medio superior.
+        movq xmm3, [r10 + 2]    ; xmm3 : ↗ - Esquina superior derecha.
+        movq xmm4, [r11]        ; xmm4 : < - Medio lateral izquierdo.
+        movq xmm5, [r11 + 2]    ; xmm5 : > - Medio lateral derecho.
+        movq xmm6, [r12]        ; xmm6 : ↙ - Esquina inferior izquierda.
+        movq xmm7, [r12 + 1]    ; xmm7 : v - Medio inferior.
+        movq xmm8, [r12 + 2]    ; xmm8 : ↘ - Esquina inferior derecha.
+
+        movdqu xmm9, xmm3       ; Copiamos xmm3, xmm8 pues los tenemos
+        movdqu xmm10, xmm8      ; que usar para el calculo de Total_Gy.
+
+        punpcklbw xmm1, xmm15   ; xmm1[31:0] = 0x00 | ↖₁ | 0x00 | ↖₀
+        punpcklbw xmm3, xmm15   ; xmm3[31:0] = 0x00 | ↗₁ | 0x00 | ↗₀
+        psubw xmm3, xmm1        ; xmm3[31:0] = ↗₁ - ↖₁ | ↗₀ - ↖₀
+
+        punpcklbw xmm6, xmm15   ; xmm6[31:0] = 0x00 | ↙₁ | 0x00 | ↙₀
+        punpcklbw xmm8, xmm15   ; xmm8[31:0] = 0x00 | ↘₁ | 0x00 | ↘₀
+        psubw xmm8, xmm6        ; xmm8[31:0] = ↘₁ - ↙₁ | ↘₀ - ↙₀
+
+        punpcklbw xmm4, xmm15   ; xmm4[31:0] = 0x00 | <--₁ | 0x00 | <--₀
+        punpcklbw xmm5, xmm15   ; xmm5[31:0] = 0x00 | -->₁ | 0x00 | -->₀
+        psubw xmm5, xmm4        ; xmm5[31:0] = -->₁ - <--₁ | -->₀ - <--₀
+        psllw xmm5, 1           ; xmm5[31:0] = 2*(-->₁ - <--₁) | 2*(-->₀ - <--₀)
+
+        paddw xmm3, xmm8
+        paddw xmm3, xmm5
+
+        pabsw xmm3, xmm3
+        movdqu xmm0, xmm3      
+
         psubw xmm6, xmm1        ; xmm6[31:0] = ↙₁ - ↖₁ | ↙₀ - ↖₀
 
         punpcklbw xmm9, xmm15   ; xmm3[31:0]  = 0x00 | ↗₁ | 0x00 | ↗₀
@@ -117,6 +149,64 @@ Bordes_asm:
         jmp .loop
 
     .end_loop:
+        movq xmm1, [r10]        ; xmm1 : ↖ - Esquina superior izquierda.
+        movq xmm2, [r10 + 1]    ; xmm2 : ^ - Medio superior.
+        movq xmm3, [r10 + 2]    ; xmm3 : ↗ - Esquina superior derecha.
+        movq xmm4, [r11]        ; xmm4 : < - Medio lateral izquierdo.
+        movq xmm5, [r11 + 2]    ; xmm5 : > - Medio lateral derecho.
+        movq xmm6, [r12]        ; xmm6 : ↙ - Esquina inferior izquierda.
+        movq xmm7, [r12 + 1]    ; xmm7 : v - Medio inferior.
+        movq xmm8, [r12 + 2]    ; xmm8 : ↘ - Esquina inferior derecha.
+
+        movdqu xmm9, xmm3       ; Copiamos xmm3, xmm8 pues los tenemos
+        movdqu xmm10, xmm8      ; que usar para el calculo de Total_Gy.
+
+        punpcklbw xmm1, xmm15   ; xmm1[31:0] = 0x00 | ↖₁ | 0x00 | ↖₀
+        punpcklbw xmm3, xmm15   ; xmm3[31:0] = 0x00 | ↗₁ | 0x00 | ↗₀
+        psubw xmm3, xmm1        ; xmm3[31:0] = ↗₁ - ↖₁ | ↗₀ - ↖₀
+
+        punpcklbw xmm6, xmm15   ; xmm6[31:0] = 0x00 | ↙₁ | 0x00 | ↙₀
+        punpcklbw xmm8, xmm15   ; xmm8[31:0] = 0x00 | ↘₁ | 0x00 | ↘₀
+        psubw xmm8, xmm6        ; xmm8[31:0] = ↘₁ - ↙₁ | ↘₀ - ↙₀
+
+        punpcklbw xmm4, xmm15   ; xmm4[31:0] = 0x00 | <--₁ | 0x00 | <--₀
+        punpcklbw xmm5, xmm15   ; xmm5[31:0] = 0x00 | -->₁ | 0x00 | -->₀
+        psubw xmm5, xmm4        ; xmm5[31:0] = -->₁ - <--₁ | -->₀ - <--₀
+        psllw xmm5, 1           ; xmm5[31:0] = 2*(-->₁ - <--₁) | 2*(-->₀ - <--₀)
+
+        paddw xmm3, xmm8
+        paddw xmm3, xmm5
+
+        pabsw xmm3, xmm3
+        movdqu xmm0, xmm3      
+
+        psubw xmm6, xmm1        ; xmm6[31:0] = ↙₁ - ↖₁ | ↙₀ - ↖₀
+
+        punpcklbw xmm9, xmm15   ; xmm3[31:0]  = 0x00 | ↗₁ | 0x00 | ↗₀
+        punpcklbw xmm10, xmm15  ; xmm10[31:0] = 0x00 | ↘₁ | 0x00 | ↘₀
+        psubw xmm10, xmm9       ; xmm10[31:0] = ↘₁ - ↗₁ | ↘₀ - ↗₀
+
+        punpcklbw xmm2, xmm15   ; xmm2[31:0] = 0x00 | ^₁ | 0x00 | ^₀
+        punpcklbw xmm7, xmm15   ; xmm7[31:0] = 0x00 | v₁ | 0x00 | v₀
+        psubw xmm7, xmm2        ; xmm7[31:0] = v₁ - ^₁ | v₀ - ^₀
+        psllw xmm7, 1           ; xmm7[31:0] = 2*(v₁ - ^₁) | 2*(v₀ - ^₀)
+
+        paddw xmm6, xmm10
+        paddw xmm6, xmm7
+
+        pabsw xmm6, xmm6
+        
+        paddw xmm0, xmm6
+        packuswb xmm0, xmm0
+
+        movq [r13 + 1], xmm0
+
+        add r13, 8
+        add r12, 8
+        add r11, 8
+        add r10, 8
+
+; ==============================================================================
         movq xmm1, [r10]        ; Ultimos 8 pixeles a procear.
         movq xmm4, [r11]        ; r10 -> fila n-2 : ____ | ____ | ... | ____
         movq xmm6, [r12]        ; r11 -> fila n-1 : ____ | ____ | ... | ____
@@ -124,7 +214,7 @@ Bordes_asm:
         movdqu xmm2, xmm1       ; xmm2[63:0] = p_7 | p_6 | p_5 | p_4 | ... | p_0
         psrldq xmm2, 1          ; xmm2[63:0] = ___ | p_7 | p_6 | p_5 | ... | p_1
         movdqu xmm3, xmm1       
-        psrldq xmm3, 2           ; xmm3[63:0] = ___ | ___ | p_7 | p_6 | ... | p_2
+        psrldq xmm3, 2          ; xmm3[63:0] = ___ | ___ | p_7 | p_6 | ... | p_2
 
         movdqu xmm5, xmm4       ; xmm5[63:0] = q_7 | q_6 | q_5 | q_4 | ... | q_0
         psrldq xmm5, 2          ; xmm5[63:0] = ___ | ___ | q_7 | q_6 | ... | q_2

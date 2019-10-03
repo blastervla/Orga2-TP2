@@ -27,7 +27,7 @@ void leer_params_Nivel(configuracion_t *config, int argc, char *argv[]) {
 
 void aplicar_Nivel(configuracion_t *config)
 {
-    Nivel_fn_t *Nivel = SWITCH_C_ASM( config, Nivel_c, Nivel_asm, Nivel_asm, Nivel_asm, Nivel_asm );
+    Nivel_fn_t *Nivel = SWITCH_C_ASM( config, Nivel_c, Nivel_asm );
     buffer_info_t info = config->src;
     Nivel(info.bytes, config->dst.bytes, info.width, info.height, 
             info.row_size, config->dst.row_size, extra.n);
