@@ -21,6 +21,7 @@ __pycache__/
 
 exp/img
 exp/tp2
+exp/*.bmp
 
 # GDB
 *.gdb_history

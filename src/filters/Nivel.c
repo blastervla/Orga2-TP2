@@ -7,7 +7,16 @@
 void Nivel_asm (uint8_t *src, uint8_t *dst, int width, int height,
                       int src_row_size, int dst_row_size, int n);
 
-void Nivel_c   (uint8_t *src, uint8_t *dst, int width, int height,
+void Nivel_asm_mid (uint8_t *src, uint8_t *dst, int width, int height,
+                      int src_row_size, int dst_row_size, int n);
+
+void Nivel_asm_low (uint8_t *src, uint8_t *dst, int width, int height,
+                      int src_row_size, int dst_row_size, int n);
+
+void Nivel_asm_ultra_low (uint8_t *src, uint8_t *dst, int width, int height,
+                      int src_row_size, int dst_row_size, int n);
+
+void Nivel_c (uint8_t *src, uint8_t *dst, int width, int height,
                       int src_row_size, int dst_row_size, int n);
 
 typedef void (Nivel_fn_t) (uint8_t*, uint8_t*, int, int, int, int, int);
@@ -27,7 +36,7 @@ void leer_params_Nivel(configuracion_t *config, int argc, char *argv[]) {
 
 void aplicar_Nivel(configuracion_t *config)
 {
-    Nivel_fn_t *Nivel = SWITCH_C_ASM( config, Nivel_c, Nivel_asm );
+    Nivel_fn_t *Nivel = SWITCH_C_ASM( config, Nivel_c, Nivel_asm, Nivel_asm_mid, Nivel_asm_low, Nivel_asm_ultra_low );
     buffer_info_t info = config->src;
     Nivel(info.bytes, config->dst.bytes, info.width, info.height, 
             info.row_size, config->dst.row_size, extra.n);
