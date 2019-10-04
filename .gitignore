@@ -2,3 +2,29 @@
 
 # Built objects
 *.o
+*/build
+
+# Python
+__pycache__/
+
+# Jupyter Notebook
+*.ipynb_checkpoints
+
+# Environments
+*.env
+*.venv
+*env/
+*venv/
+*ENV/
+*env.bak/
+*venv.bak/
+
+exp/img
+exp/tp2
+exp/*.bmp
+
+# GDB
+*.gdb_history
+
+# IDE
+*.vscode

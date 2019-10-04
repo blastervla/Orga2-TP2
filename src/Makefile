@@ -2,7 +2,12 @@
 #   Organizacion del Computador II - Trabajo Practico 2                     #
 # ************************************************************************* #
 
-CFLAGS64 = -ggdb -Wall -Wno-unused-parameter -Wextra -std=c99 -no-pie -pedantic -m64 -O0 -march=native
+OPT = O0
+ifdef C_OPT
+	OPT = $(C_OPT)
+endif
+
+CFLAGS64 = -ggdb -Wall -Wno-unused-parameter -Wextra -std=c99 -no-pie -pedantic -m64 -$(OPT) -march=native
 CFLAGS=$(CFLAGS64)
 
 BUILD_DIR = build
@@ -10,6 +15,10 @@ BIN = tp2
 BIN_IM2 = $(addsuffix _im2, $(BIN))
 BIN_IM4 = $(addsuffix _im4, $(BIN))
 BIN_IM8 = $(addsuffix _im8, $(BIN))
+
+ifdef C_BIN
+	BIN = $(C_BIN)
+endif
 
 FILTROS = Rombos Bordes Nivel
 FILTROS_SIN_BORDES = Rombos Nivel
