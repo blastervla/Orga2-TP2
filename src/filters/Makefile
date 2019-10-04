@@ -19,8 +19,9 @@ ASMFLAGS = $(ASMFLAGS64)
 BUILD_DIR = ../build
 
 FILTROS = Rombos Nivel Bordes
+FILTROS_EXP = Bordes_im2 Bordes_im4 Bordes_im8
 
-FILTROS_OBJ = $(addsuffix .o, $(FILTROS)) $(addsuffix _asm.o, $(FILTROS)) $(addsuffix _c.o, $(FILTROS))
+FILTROS_OBJ = $(addsuffix .o, $(FILTROS)) $(addsuffix _asm.o, $(FILTROS)) $(addsuffix _c.o, $(FILTROS)) $(addsuffix _asm.o, $(FILTROS_EXP))
 FILTROS_OBJ_CON_PATH = $(addprefix  $(BUILD_DIR)/, $(FILTROS_OBJ))
 
 .PHONY: filtros clean
