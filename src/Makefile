@@ -2,11 +2,20 @@
 #   Organizacion del Computador II - Trabajo Practico 2                     #
 # ************************************************************************* #
 
-CFLAGS64 = -ggdb -Wall -Wno-unused-parameter -Wextra -std=c99 -no-pie -pedantic -m64 -O0 -march=native
+OPT = O0
+ifdef C_OPT
+	OPT = $(C_OPT)
+endif
+
+CFLAGS64 = -ggdb -Wall -Wno-unused-parameter -Wextra -std=c99 -no-pie -pedantic -m64 -$(OPT) -march=native
 CFLAGS=$(CFLAGS64)
 
 BUILD_DIR = build
 BIN = tp2
+
+ifdef C_BIN
+	BIN = $(C_BIN)
+endif
 
 FILTROS = Rombos Bordes Nivel
 

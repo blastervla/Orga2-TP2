@@ -7,6 +7,9 @@
 void Rombos_asm (uint8_t *src, uint8_t *dst, int width, int height,
                       int src_row_size, int dst_row_size);
 
+void Rombos_pclc_asm (uint8_t *src, uint8_t *dst, int width, int height,
+                      int src_row_size, int dst_row_size);
+
 void Rombos_c   (uint8_t *src, uint8_t *dst, int width, int height,
                       int src_row_size, int dst_row_size);
 
@@ -19,9 +22,7 @@ void leer_params_Rombos(configuracion_t *config, int argc, char *argv[]) {
 
 void aplicar_Rombos(configuracion_t *config)
 {
-    // TODO: Corregir. Si tenemos implementaciones de mid y low performance, meter abajo
-    // SWITCH_C_ASM ( config, Rombos_c, Rombos_asm, Rombos_asm_mid, Rombos_asm_low );
-    Rombos_fn_t *Rombos = SWITCH_C_ASM( config, Rombos_c, Rombos_asm, Rombos_asm, Rombos_asm );
+    Rombos_fn_t *Rombos = SWITCH_C_ASM_EXP( config, Rombos_c, Rombos_asm, Rombos_pclc_asm );
     buffer_info_t info = config->src;
     Rombos(info.bytes, config->dst.bytes, info.width, info.height, 
             info.row_size, config->dst.row_size);
