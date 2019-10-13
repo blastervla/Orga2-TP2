@@ -96,25 +96,25 @@ Nivel_asm_mid:  ; RDI = pixel[][] src
     movq xmm15, rax
 .loop:
     lea r11, [r8 * 2]                  ; R11 = RCX *2 (así rcx * 2 * 8 = rcx * 16)
-    movq xmm0, qword[rdi + r11 * 8 - 16] ; Levanto 2 píxeles de src (16 bytes)
+    movdqu xmm0, [rdi + r11 * 8 - 16] ; Levanto 2 píxeles de src (16 bytes)
     pand xmm0, xmm1                    ; Hago AND con la máscara
     movdqa xmm3, xmm0
     
     punpcklbw xmm0, xmm2
-    punpcklbw xmm3, xmm2
+    punpckhbw xmm3, xmm2
     psllw xmm0, xmm15
     psllw xmm3, xmm15
     psraw xmm0, 15
     psraw xmm3, 15
 
-    packuswb xmm0, xmm3
+    packsswb xmm0, xmm3
 
     mov eax, 0xFF000000
     movq xmm3, rax
     pshufd xmm3, xmm3, 0x00             ; xmm3 = 0x000000FF000000FF000000FF000000FF
     por xmm0, xmm3                      ; Alphas tienen que ser siempre 255
     
-    movq qword[rsi + r11 * 8 - 16], xmm0 ; Almaceno los 4 píxeles en dst
+    movdqu [rsi + r11 * 8 - 16], xmm0 ; Almaceno los 4 píxeles en dst
 
     dec r8
     jnz .loop
