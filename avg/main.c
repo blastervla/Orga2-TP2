@@ -31,18 +31,13 @@ int main(int argc, char** argv) {
     unsigned char (*_src_matrix_2)[width] = (unsigned char (*)[width]) bmp_data(_src_img_2);
 
     uint32_t count = 0;
-    uint32_t max = 0;
-    uint32_t min = 255;
     for (int i = 0; i < height; ++i) {
         for (int j = 0; j < width; ++j) {
             int d = _src_matrix_1[i][j] - _src_matrix_2[i][j];
-            if (max < abs(d)) max = abs(d);
-            if (min > abs(d)) min = abs(d);
             count = count + abs(d);
         }
     }
     double total_avg = (double) count / (width * height);
     printf("The average difference between pixels is: %lf\n", total_avg);
-    printf("Min: %u, Max: %u", min, max);
     return 0;
 }
